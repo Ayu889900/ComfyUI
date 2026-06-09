@@ -1816,6 +1816,40 @@ class WAN21_SCAIL2(WAN21_SCAIL):
     def resize_cond_for_context_window(self, cond_key, cond_value, window, x_in, device, retain_index_list=[]):
         if cond_key in ("sam_latents", "pose_latents"):
             return comfy.context_windows.slice_cond(cond_value, window, x_in, device, temporal_dim=2, temporal_offset=1)
+        if cond_key == "ref_mask_latents":
+            if not (hasattr(cond_value, "cond") and isinstance(cond_value.cond, torch.Tensor)):
+                return None
+
+            cond_tensor = cond_value.cond
+            temporal_dim = 2
+            if temporal_dim >= cond_tensor.ndim:
+                return None
+
+            x_frames = x_in.size(window.dim)
+            cond_frames = cond_tensor.size(temporal_dim)
+            if cond_frames == x_frames:
+                return comfy.context_windows.slice_cond(cond_value, window, x_in, device, temporal_dim=temporal_dim, retain_index_list=retain_index_list)
+            if cond_frames != x_frames + 1:
+                return None
+
+            indices = [0]
+            anchor_idx = getattr(window, 'causal_anchor_index', None)
+            if anchor_idx is not None and anchor_idx >= 0:
+                indices.append(anchor_idx + 1)
+            indices.extend(i + 1 for i in window.index_list)
+
+            idx = tuple([slice(None)] * temporal_dim + [indices])
+            sliced = cond_tensor[idx].to(device)
+
+            for retain_index in retain_index_list:
+                local_index = retain_index + 1
+                source_index = retain_index + 1
+                if 0 <= local_index < sliced.size(temporal_dim) and 0 <= source_index < cond_frames:
+                    dst = tuple([slice(None)] * temporal_dim + [local_index])
+                    src = tuple([slice(None)] * temporal_dim + [source_index])
+                    sliced[dst] = cond_tensor[src].to(device)
+
+            return cond_value._copy_with(sliced)
         return super().resize_cond_for_context_window(cond_key, cond_value, window, x_in, device, retain_index_list=retain_index_list)
 
     def concat_cond(self, **kwargs):
