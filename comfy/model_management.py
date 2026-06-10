@@ -1421,7 +1421,7 @@ def sync_stream(device, stream):
     current_stream(device).wait_stream(stream)
 
 
-def cast_to_gathered(tensors, r, non_blocking=False, stream=None, r2=None):
+def cast_to_gathered(tensors, r, non_blocking=False, stream=None, r2=None, fallback_model_name=None):
     wf_context = nullcontext()
     if stream is not None:
        wf_context = stream
@@ -1436,7 +1436,9 @@ def cast_to_gathered(tensors, r, non_blocking=False, stream=None, r2=None):
             dest2_view = dest2_views.pop(0) if dest2_views is not None else None
             if tensor is None:
                 continue
-            if comfy.memory_management.read_tensor_file_slice_into(tensor, dest_view, stream=stream, destination2=dest2_view):
+            if comfy.memory_management.read_tensor_file_slice_into(tensor, dest_view, stream=stream,
+                                                                   destination2=dest2_view,
+                                                                   fallback_model_name=fallback_model_name):
                 continue
             storage = tensor._qdata.untyped_storage() if isinstance(tensor, comfy.quant_ops.QuantizedTensor) else tensor.untyped_storage()
             mark_mmap_dirty(storage)

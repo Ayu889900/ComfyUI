@@ -1804,6 +1804,7 @@ class ModelPatcherDynamic(ModelPatcher):
                 pin_state["hostbufs_initialized"] = True
             pin_state["failed"] = False
             pin_state["active"] = True
+            pin_state["model_name"] = self.model.__class__.__name__
             if vbar is not None:
                 vbar.prioritize()
 
