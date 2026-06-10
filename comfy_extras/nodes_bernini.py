@@ -20,16 +20,16 @@ def _resize_long_edge(image, max_size, stride=16):
 class BerniniConditioning(io.ComfyNode):
     """Bernini in-context conditioning for a Wan2.2-A14B model.
 
-    Attaches the VAE-encoded source video / reference images to the conditioning
+    Attaches the VAE-encoded source video / reference images to the conditioning as
     an ordered list of clean latents (source video first, then each reference image),
     which the Wan model appends as extra tokens with per-stream source_id rope.
 
     The task is inferred from which inputs are connected:
-      (nothing)                  -> t2v
-      source_video               -> v2v
-      source_video + ref images  -> rv2v
-      ref images only            -> r2v   (each kept at native aspect)
-      source_video + ref_video   -> video insertion / "ads2v"
+      (nothing)                  -> t2v (text-to-video)
+      source_video               -> v2v (video-to-video)
+      source_video + ref images  -> rv2v (reference-guided video editing)
+      ref images only            -> r2v (reference-to-video; each kept at native aspect)
+      source_video + ref_video   -> ads2v (insert image/video into video)
 
     source_video is the edit base / canvas (resized to width x height).
     reference_video is moving content to composite in (e.g. a clip to play on a
@@ -44,8 +44,8 @@ class BerniniConditioning(io.ComfyNode):
             node_id="BerniniConditioning",
             display_name="Bernini Conditioning",
             category="conditioning/video_models",
-            description="Conditioning node for Bernini in-context video/image conditioning. Attach source video and/or reference images to the positive/negative conditioning, "
-                        "which the Wan model will append as extra tokens with per-stream source_id rope.",
+            description="Conditioning node for Bernini in-context video/image conditioning. It can be used for the following tasks: t2v (text-to-video), v2v (video-to-video), rv2v (reference-guided video editing), r2v (reference-to-video), ads2v (insert image/video into video)."
+                        " Reference images injected as in-context tokens are encoded independently at their own native aspect ratio (long edge capped at ref_max_size).",
             inputs=[
                 io.Conditioning.Input("positive"),
                 io.Conditioning.Input("negative"),
