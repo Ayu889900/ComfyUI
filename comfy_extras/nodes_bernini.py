@@ -43,7 +43,7 @@ class BerniniConditioning(io.ComfyNode):
         return io.Schema(
             node_id="BerniniConditioning",
             display_name="Bernini Conditioning",
-            category="conditioning/video_models",
+            category="model/conditioning/bernini",
             description="Conditioning node for Bernini in-context video/image conditioning. It can be used for the following tasks: t2v (text-to-video), v2v (video-to-video), rv2v (reference-guided video editing), r2v (reference-to-video), ads2v (insert image/video into video)."
                         " Reference images injected as in-context tokens are encoded independently at their own native aspect ratio (long edge capped at ref_max_size).",
             inputs=[
@@ -79,10 +79,8 @@ class BerniniConditioning(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, positive, negative, vae, width, height, length, batch_size,
-                source_video=None, reference_video=None, reference_images=None, ref_max_size=848) -> io.NodeOutput:
-        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8],
-                             device=comfy.model_management.intermediate_device())
+    def execute(cls, positive, negative, vae, width, height, length, batch_size, source_video=None, reference_video=None, reference_images=None, ref_max_size=848) -> io.NodeOutput:
+        latent = torch.zeros([batch_size, 16, ((length - 1) // 4) + 1, height // 8, width // 8], device=comfy.model_management.intermediate_device())
 
         # Ordered list of condition streams -> source_id by list order:
         # source_video (1), reference_video (2), reference_images (3, 4, ...).
@@ -116,9 +114,7 @@ class BerniniConditioning(io.ComfyNode):
 class BerniniExtension(ComfyExtension):
     @override
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [
-            BerniniConditioning,
-        ]
+        return [BerniniConditioning,]
 
 
 async def comfy_entrypoint() -> BerniniExtension:
