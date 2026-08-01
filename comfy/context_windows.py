@@ -141,6 +141,9 @@ def slice_cond(cond_value, window: IndexListContextWindow, x_in: torch.Tensor, d
         indices = [i for i in indices if 0 <= i]
     else:
         indices = list(window.index_list)
+        anchor_idx = getattr(window, 'causal_anchor_index', None)
+        if temporal_scale > 1 and anchor_idx is not None and anchor_idx >= 0:
+            indices.insert(0, anchor_idx)
 
     if not indices:
         return None

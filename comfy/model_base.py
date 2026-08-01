@@ -1843,7 +1843,7 @@ class WAN22_S2V(WAN21):
 
     def resize_cond_for_context_window(self, cond_key, cond_value, window, x_in, device, retain_index_list=[]):
         if cond_key == "audio_embed":
-            return comfy.context_windows.slice_cond(cond_value, window, x_in, device, temporal_dim=1)
+            return comfy.context_windows.slice_cond(cond_value, window, x_in, device, temporal_dim=3, temporal_scale=4)
         return super().resize_cond_for_context_window(cond_key, cond_value, window, x_in, device, retain_index_list=retain_index_list)
 
 class WAN22(WAN21):
