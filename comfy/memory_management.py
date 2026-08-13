@@ -1,7 +1,6 @@
 import math
 import ctypes
 import dataclasses
-import logging
 import torch
 from typing import NamedTuple
 
@@ -16,51 +15,12 @@ class TensorFileSlice(NamedTuple):
     size: int
 
 
-_aimdo_fallback_warning_prompt_id = None
-_aimdo_fallback_warning_models = set()
-
-
-def warn_aimdo_file_reader_fallback(model_name, error):
-    global _aimdo_fallback_warning_prompt_id
-    global _aimdo_fallback_warning_models
-
-    prompt_id = None
-    try:
-        from comfy_execution.utils import get_executing_context
-        context = get_executing_context()
-        if context is not None:
-            prompt_id = context.prompt_id
-    except Exception:
-        pass
-
-    if prompt_id != _aimdo_fallback_warning_prompt_id:
-        _aimdo_fallback_warning_prompt_id = prompt_id
-        _aimdo_fallback_warning_models = set()
-
-    model_name = model_name or "unknown model"
-    warning_key = model_name
-    if warning_key in _aimdo_fallback_warning_models:
-        return
-    _aimdo_fallback_warning_models.add(warning_key)
-
-    prompt_text = f" during prompt {prompt_id}" if prompt_id is not None else ""
-    logging.warning(
-        "AIMDO direct file read failed for %s%s: %s. Falling back to tensor copy; "
-        "further fallback warnings for this model in this prompt are suppressed.",
-        model_name,
-        prompt_text,
-        error,
-    )
-
-
-def read_tensor_file_slice_into(tensor, destination, stream=None, destination2=None,
-                                fallback_model_name=None):
+def read_tensor_file_slice_into(tensor, destination, stream=None, destination2=None):
 
     if isinstance(tensor, QuantizedTensor):
         if not read_tensor_file_slice_into(tensor._qdata,
                                            destination._qdata if destination is not None else None, stream=stream,
-                                           destination2=(destination2._qdata if destination2 is not None else None),
-                                           fallback_model_name=fallback_model_name):
+                                           destination2=(destination2._qdata if destination2 is not None else None)):
             return False
 
         if destination is not None:
@@ -96,30 +56,22 @@ def read_tensor_file_slice_into(tensor, destination, stream=None, destination2=N
 
     if destination is None:
         stream_ptr = getattr(stream, "cuda_stream", 0) if stream is not None else 0
-        try:
-            comfy_aimdo.host_buffer.read_file_to_device(file_obj, info.offset, info.size,
-                                                        stream_ptr, destination2.data_ptr(),
-                                                        destination2.device.index,
-                                                        mark_cold=False)
-        except RuntimeError as e:
-            warn_aimdo_file_reader_fallback(fallback_model_name, e)
-            return False
+        comfy_aimdo.host_buffer.read_file_to_device(file_obj, info.offset, info.size,
+                                                    stream_ptr, destination2.data_ptr(),
+                                                    destination2.device.index,
+                                                    mark_cold=False)
         return True
 
     hostbuf = getattr(destination.untyped_storage(), "_comfy_hostbuf", None)
     if hostbuf is not None:
         stream_ptr = getattr(stream, "cuda_stream", 0) if stream is not None else 0
         device_ptr = destination2.data_ptr() if destination2 is not None else 0
-        try:
-            with info.lock:
-                hostbuf.read_file_slice(file_obj, info.offset, info.size,
-                                        offset=destination.data_ptr() - hostbuf.get_raw_address(),
-                                        stream=stream_ptr,
-                                        device_ptr=device_ptr,
-                                        device=None if destination2 is None else destination2.device.index)
-        except RuntimeError as e:
-            warn_aimdo_file_reader_fallback(fallback_model_name, e)
-            return False
+        with info.lock:
+            hostbuf.read_file_slice(file_obj, info.offset, info.size,
+                                    offset=destination.data_ptr() - hostbuf.get_raw_address(),
+                                    stream=stream_ptr,
+                                    device_ptr=device_ptr,
+                                    device=None if destination2 is None else destination2.device.index)
         return True
 
     if not hasattr(file_obj, "seek") or not hasattr(file_obj, "readinto"):

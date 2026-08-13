@@ -141,9 +141,6 @@ def slice_cond(cond_value, window: IndexListContextWindow, x_in: torch.Tensor, d
         indices = [i for i in indices if 0 <= i]
     else:
         indices = list(window.index_list)
-        anchor_idx = getattr(window, 'causal_anchor_index', None)
-        if temporal_scale > 1 and anchor_idx is not None and anchor_idx >= 0:
-            indices.insert(0, anchor_idx)
 
     if not indices:
         return None
@@ -559,8 +556,8 @@ class IndexListContextHandler(ContextHandlerABC):
 
     def set_step(self, timestep: torch.Tensor, model_options: dict[str]):
         sample_sigmas = model_options["transformer_options"]["sample_sigmas"]
-        step_timestep = timestep[0].to(device=sample_sigmas.device, dtype=sample_sigmas.dtype)
-        mask = torch.isclose(sample_sigmas, step_timestep, rtol=0.0001)
+        current_timestep = timestep[0].to(sample_sigmas.dtype)
+        mask = torch.isclose(sample_sigmas, current_timestep, rtol=0.0001)
         matches = torch.nonzero(mask)
         if torch.numel(matches) == 0:
             return  # substep from multi-step sampler: keep self._step from the last full step
