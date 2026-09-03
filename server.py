@@ -380,19 +380,21 @@ class PromptServer():
 
             return type_dir, dir_type
 
-        def compare_image_hash(filepath, image):
-            hasher = node_helpers.hasher()
-
+        def compare_image_hash(filepath, image, image_size, image_hash):
             # function to compare hashes of two images to see if it already exists, fix to #3465
-            if os.path.exists(filepath):
-                a = hasher()
-                b = hasher()
-                with open(filepath, "rb") as f:
-                    a.update(f.read())
-                    b.update(image.file.read())
-                    image.file.seek(0)
-                return a.hexdigest() == b.hexdigest()
-            return False
+            if os.path.getsize(filepath) != image_size:
+                return False, image_hash
+
+            if image_hash is None:
+                hasher = node_helpers.hasher()
+                hasher.update(image.file.read())
+                image_hash = hasher.hexdigest()
+                image.file.seek(0)
+
+            hasher = node_helpers.hasher()
+            with open(filepath, "rb") as f:
+                hasher.update(f.read())
+            return hasher.hexdigest() == image_hash, image_hash
 
         def image_upload(post, image_save_function=None):
             image = post.get("image")
@@ -422,10 +424,14 @@ class PromptServer():
                 if overwrite is not None and (overwrite == "true" or overwrite == "1"):
                     pass
                 else:
+                    image.file.seek(0, os.SEEK_END)
+                    image_size = image.file.tell()
+                    image.file.seek(0)
+                    image_hash = None
                     i = 1
                     while os.path.exists(filepath):
-                        if compare_image_hash(filepath, image): #compare hash to prevent saving of duplicates with same name, fix for #3465
-                            image_is_duplicate = True
+                        image_is_duplicate, image_hash = compare_image_hash(filepath, image, image_size, image_hash) #compare hash to prevent saving of duplicates with same name, fix for #3465
+                        if image_is_duplicate:
                             break
                         filename = f"{split[0]} ({i}){split[1]}"
                         filepath = os.path.join(full_output_folder, filename)
