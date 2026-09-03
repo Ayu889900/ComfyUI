@@ -1738,7 +1738,10 @@ class LoadImage:
     @classmethod
     def INPUT_TYPES(s):
         input_dir = folder_paths.get_input_directory()
-        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        files, _ = folder_paths.recursive_search(input_dir)
+        # The upload widget stores pasted files below input/pasted. Keep paths
+        # in the same POSIX form used by upload responses and workflow values.
+        files = [f.replace(os.sep, "/") for f in files]
         files = folder_paths.filter_files_content_types(files, ["image"])
         return {"required":
                     {"image": (sorted(files), {"image_upload": True})},
