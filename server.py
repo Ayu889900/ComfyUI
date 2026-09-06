@@ -386,12 +386,12 @@ class PromptServer():
                 return False, image_hash
 
             if image_hash is None:
-                hasher = node_helpers.hasher()
+                hasher = node_helpers.hasher()()
                 hasher.update(image.file.read())
                 image_hash = hasher.hexdigest()
                 image.file.seek(0)
 
-            hasher = node_helpers.hasher()
+            hasher = node_helpers.hasher()()
             with open(filepath, "rb") as f:
                 hasher.update(f.read())
             return hasher.hexdigest() == image_hash, image_hash
